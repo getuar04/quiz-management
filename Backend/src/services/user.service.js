@@ -27,7 +27,11 @@ const updateProfileService = async (userId, data) => {
   return user;
 };
 
-const getAllUsersService = async () => {
+const getAllUsersService = async (user) => {
+  if (user.role === "teacher") {
+    return User.find({ role: "student", isActive: true }).select("-password").sort("name");
+  }
+
   return User.find().select("-password").sort("-createdAt");
 };
 

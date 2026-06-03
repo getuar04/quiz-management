@@ -28,3 +28,4 @@ coverage
 # vite
 .env.local
 .env.*.local
+.env

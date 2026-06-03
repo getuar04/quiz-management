@@ -27,7 +27,7 @@ const updateProfile = async (req, res, next) => {
 
 const getAllUsers = async (req, res, next) => {
   try {
-    const users = await getAllUsersService();
+    const users = await getAllUsersService(req.user);
     return sendSuccess(res, 200, "Users retrieved.", users);
   } catch (error) {
     next(error);

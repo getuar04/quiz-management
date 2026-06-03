@@ -1,5 +1,6 @@
 const Quiz = require("../models/quiz.model");
 const Question = require("../models/question.model");
+const Submission = require("../models/submission.model");
 const User = require("../models/user.model");
 
 const isOwner = (quiz, user) => quiz.createdBy.toString() === user._id.toString();
@@ -34,6 +35,7 @@ const getAllQuizzesService = async (user) => {
     return Quiz.find({ createdBy: user._id })
       .populate("createdBy", "name email role isActive")
       .populate("assignedStudents", "name email role isActive")
+      .populate("questions")
       .sort("-createdAt");
   }
 
@@ -41,6 +43,7 @@ const getAllQuizzesService = async (user) => {
     return Quiz.find()
       .populate("createdBy", "name email role isActive")
       .populate("assignedStudents", "name email role isActive")
+      .populate("questions")
       .sort("-createdAt");
   }
 
@@ -55,22 +58,19 @@ const getAllQuizzesService = async (user) => {
 const getMyQuizzesService = async (userId) => {
   return Quiz.find({ createdBy: userId })
     .populate("assignedStudents", "name email role isActive")
+    .populate("questions")
     .sort("-createdAt");
 };
 
 const getQuizByIdService = async (quizId, user) => {
-  const quiz = await Quiz.findById(quizId)
-    .populate("createdBy", "name email role isActive")
-    .populate("assignedStudents", "name email role isActive")
-    .populate("questions");
+  const rawQuiz = await Quiz.findById(quizId);
 
-  if (!quiz) {
+  if (!rawQuiz) {
     const err = new Error("Quiz not found.");
     err.statusCode = 404;
     throw err;
   }
 
-  const rawQuiz = await Quiz.findById(quizId);
   const canAccess =
     isAdmin(user) ||
     (isTeacher(user) && isOwner(rawQuiz, user)) ||
@@ -82,7 +82,13 @@ const getQuizByIdService = async (quizId, user) => {
     throw err;
   }
 
-  return quiz;
+  const query = Quiz.findById(quizId)
+    .populate("createdBy", "name email role isActive")
+    .populate("assignedStudents", "name email role isActive");
+
+  if (!isStudent(user)) query.populate("questions");
+
+  return query;
 };
 
 const createQuizService = async (data, userId) => {
@@ -117,9 +123,7 @@ const updateQuizService = async (quizId, data, user) => {
   if (data.description !== undefined) quiz.description = data.description;
   if (data.category !== undefined) quiz.category = data.category;
   if (data.isPublished !== undefined) quiz.isPublished = data.isPublished;
-  if (data.assignedStudents !== undefined) {
-    quiz.assignedStudents = await validateAssignedStudents(data.assignedStudents);
-  }
+  if (data.assignedStudents !== undefined) quiz.assignedStudents = await validateAssignedStudents(data.assignedStudents);
 
   return quiz.save();
 };
@@ -140,6 +144,7 @@ const deleteQuizService = async (quizId, user) => {
   }
 
   await Question.deleteMany({ quiz: quizId });
+  await Submission.deleteMany({ quiz: quizId });
   await quiz.deleteOne();
 };
 

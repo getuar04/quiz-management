@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const User = require("../src/models/user.model");
 const Quiz = require("../src/models/quiz.model");
 const Question = require("../src/models/question.model");
+const Submission = require("../src/models/submission.model");
 
 const teachers = Array.from({ length: 5 }, (_, i) => ({
   name: `Teacher ${i + 1}`,
@@ -101,7 +102,11 @@ const seedDemoData = async () => {
     const studentDocs = [];
     for (const student of students) studentDocs.push(await upsertUser(student));
 
-    await Quiz.deleteMany({ createdBy: { $in: teacherDocs.map((t) => t._id) } });
+    const oldQuizzes = await Quiz.find({ createdBy: { $in: teacherDocs.map((t) => t._id) } }).select("_id");
+    const oldQuizIds = oldQuizzes.map((quiz) => quiz._id);
+    await Question.deleteMany({ quiz: { $in: oldQuizIds } });
+    await Submission.deleteMany({ quiz: { $in: oldQuizIds } });
+    await Quiz.deleteMany({ _id: { $in: oldQuizIds } });
 
     for (let i = 0; i < quizTemplates.length; i++) {
       const teacher = teacherDocs[i % teacherDocs.length];

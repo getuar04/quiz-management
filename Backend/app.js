@@ -6,6 +6,7 @@ const authRoutes = require("./src/routes/auth.routes");
 const userRoutes = require("./src/routes/user.routes");
 const quizRoutes = require("./src/routes/quiz.routes");
 const questionRoutes = require("./src/routes/question.routes");
+const submissionRoutes = require("./src/routes/submission.routes");
 
 const errorHandler = require("./src/middleware/error.middleware");
 const notFound = require("./src/middleware/notFound.middleware");
@@ -34,6 +35,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/questions", questionRoutes);
+app.use("/api/submissions", submissionRoutes);
 
 const healthCheck = (req, res) => {
   res.json({ message: "Quiz Management API is running 🚀" });

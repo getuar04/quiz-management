@@ -7,6 +7,17 @@ const isStudent = (user) => user.role === "student";
 const isAssignedStudent = (quiz, user) =>
   quiz.assignedStudents.some((studentId) => studentId.toString() === user._id.toString());
 
+const hideCorrectAnswer = (question) => ({
+  _id: question._id,
+  id: question._id,
+  quiz: question.quiz,
+  questionText: question.questionText,
+  options: question.options,
+  points: question.points,
+  createdAt: question.createdAt,
+  updatedAt: question.updatedAt,
+});
+
 const getQuestionsByQuizService = async (quizId, user) => {
   const quiz = await Quiz.findById(quizId);
   if (!quiz) {
@@ -26,7 +37,13 @@ const getQuestionsByQuizService = async (quizId, user) => {
     throw err;
   }
 
-  return Question.find({ quiz: quizId });
+  const questions = await Question.find({ quiz: quizId });
+
+  if (isStudent(user)) {
+    return questions.map(hideCorrectAnswer);
+  }
+
+  return questions;
 };
 
 const addQuestionService = async (quizId, data, user) => {

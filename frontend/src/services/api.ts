@@ -5,9 +5,7 @@ const API_BASE_URL = rawApiUrl.endsWith("/api") ? rawApiUrl : `${rawApiUrl}/api`
 
 export const tokenStorage = {
   getAccess: () => localStorage.getItem("accessToken"),
-  set: (access: string) => {
-    localStorage.setItem("accessToken", access);
-  },
+  set: (access: string) => localStorage.setItem("accessToken", access),
   clear: () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
@@ -27,9 +25,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = tokenStorage.getAccess();
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -48,9 +44,7 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !original._retry) {
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then((token) => {
+        return new Promise((resolve, reject) => failedQueue.push({ resolve, reject })).then((token) => {
           original.headers!.Authorization = `Bearer ${token}`;
           return api(original);
         });
@@ -60,11 +54,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axios.post(
-          `${API_BASE_URL}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
+        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true });
         const { accessToken } = data.data;
         tokenStorage.set(accessToken);
         processQueue(null, accessToken);
@@ -86,16 +76,27 @@ api.interceptors.response.use(
 
 export interface AuthUser {
   id: string;
+  _id?: string;
   name: string;
   email: string;
-  role: string;
+  role: "admin" | "teacher" | "student";
+  isActive?: boolean;
+}
+
+export interface UserAccount {
+  id: string;
+  _id?: string;
+  name: string;
+  email: string;
+  role: "teacher" | "student" | "admin";
+  isActive: boolean;
 }
 
 export interface Question {
   id: string;
   text: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswer?: number;
   points?: number;
 }
 
@@ -106,6 +107,21 @@ export interface Quiz {
   category?: string;
   questionCount?: number;
   isPublished?: boolean;
+  assignedStudents?: UserAccount[];
+  createdBy?: UserAccount;
+}
+
+export interface Submission {
+  id: string;
+  score: number;
+  totalPoints: number;
+  student?: UserAccount;
+  quiz?: Quiz;
+  answers?: Array<{
+    question: Question;
+    selectedAnswer: string;
+    isCorrect: boolean;
+  }>;
 }
 
 interface ApiResponse<T> {
@@ -122,13 +138,24 @@ const unwrap = <T>(response: { data: ApiResponse<T> | T }): T => {
   return payload as T;
 };
 
+const normalizeUser = (user: any): UserAccount => ({
+  id: user.id || user._id,
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  isActive: user.isActive !== false,
+});
+
 const normalizeQuiz = (quiz: any): Quiz => ({
   id: quiz.id || quiz._id,
   title: quiz.title,
   description: quiz.description || "",
   category: quiz.category,
   isPublished: quiz.isPublished,
-  questionCount: Array.isArray(quiz.questions) ? quiz.questions.length : 0,
+  assignedStudents: Array.isArray(quiz.assignedStudents) ? quiz.assignedStudents.map(normalizeUser) : [],
+  createdBy: quiz.createdBy && typeof quiz.createdBy === "object" ? normalizeUser(quiz.createdBy) : undefined,
+  questionCount: Array.isArray(quiz.questions) ? quiz.questions.length : quiz.questionCount || 0,
 });
 
 const normalizeQuestion = (q: any): Question => ({
@@ -136,10 +163,27 @@ const normalizeQuestion = (q: any): Question => ({
   text: q.text || q.questionText,
   options: q.options || [],
   correctAnswer:
-    typeof q.correctAnswer === "number"
-      ? q.correctAnswer
-      : (q.options || []).indexOf(q.correctAnswer),
+    q.correctAnswer === undefined
+      ? undefined
+      : typeof q.correctAnswer === "number"
+        ? q.correctAnswer
+        : (q.options || []).indexOf(q.correctAnswer),
   points: q.points,
+});
+
+const normalizeSubmission = (submission: any): Submission => ({
+  id: submission.id || submission._id,
+  score: submission.score,
+  totalPoints: submission.totalPoints,
+  student: submission.student ? normalizeUser(submission.student) : undefined,
+  quiz: submission.quiz ? normalizeQuiz(submission.quiz) : undefined,
+  answers: Array.isArray(submission.answers)
+    ? submission.answers.map((answer: any) => ({
+        question: normalizeQuestion(answer.question),
+        selectedAnswer: answer.selectedAnswer,
+        isCorrect: answer.isCorrect,
+      }))
+    : [],
 });
 
 export const authService = {
@@ -150,7 +194,6 @@ export const authService = {
     tokenStorage.setUser(data.user);
     return data;
   },
-
   logout: async () => {
     try {
       await api.post("/auth/logout", {});
@@ -160,66 +203,80 @@ export const authService = {
   },
 };
 
+export const userService = {
+  getUsers: async () => {
+    const res = await api.get<ApiResponse<any[]>>("/users");
+    return unwrap<any[]>(res).map(normalizeUser);
+  },
+  createUser: async (user: { name: string; email: string; password: string; role: "teacher" | "student" }) => {
+    const res = await api.post<ApiResponse<any>>("/users", user);
+    return normalizeUser(unwrap<any>(res));
+  },
+  updateUser: async (id: string, data: Partial<UserAccount>) => {
+    const res = await api.patch<ApiResponse<any>>(`/users/${id}`, data);
+    return normalizeUser(unwrap<any>(res));
+  },
+};
+
 export const quizService = {
   getAllQuizzes: async () => {
     const res = await api.get<ApiResponse<any[]>>("/quizzes");
     return unwrap<any[]>(res).map(normalizeQuiz);
   },
-
   getMyQuizzes: async () => {
     const res = await api.get<ApiResponse<any[]>>("/quizzes/user/my");
     return unwrap<any[]>(res).map(normalizeQuiz);
   },
-
   getQuizById: async (id: string) => {
     const res = await api.get<ApiResponse<any>>(`/quizzes/${id}`);
     return normalizeQuiz(unwrap<any>(res));
   },
-
-  createQuiz: async (quiz: Omit<Quiz, "id">) => {
+  createQuiz: async (quiz: { title: string; description?: string; category?: string; isPublished?: boolean; assignedStudents?: string[] }) => {
     const res = await api.post<ApiResponse<any>>("/quizzes", quiz);
     return normalizeQuiz(unwrap<any>(res));
   },
-
-  updateQuiz: async (id: string, quiz: Partial<Quiz>) => {
+  updateQuiz: async (id: string, quiz: Partial<Quiz> & { assignedStudents?: string[] }) => {
     const res = await api.patch<ApiResponse<any>>(`/quizzes/${id}`, quiz);
     return normalizeQuiz(unwrap<any>(res));
   },
-
   deleteQuiz: async (id: string) => {
     await api.delete(`/quizzes/${id}`);
   },
-
   getQuestionsByQuiz: async (quizId: string) => {
     const res = await api.get<ApiResponse<any[]>>(`/questions/quiz/${quizId}`);
     return unwrap<any[]>(res).map(normalizeQuestion);
   },
-
   addQuestion: async (quizId: string, question: Omit<Question, "id">) => {
     const res = await api.post<ApiResponse<any>>(`/questions/quiz/${quizId}`, {
       questionText: question.text,
       options: question.options,
-      correctAnswer: question.options[question.correctAnswer],
+      correctAnswer: typeof question.correctAnswer === "number" ? question.options[question.correctAnswer] : undefined,
       points: question.points || 1,
     });
     return normalizeQuestion(unwrap<any>(res));
   },
-
-  updateQuestion: async (_quizId: string, questionId: string, question: Partial<Question>) => {
-    const res = await api.patch<ApiResponse<any>>(`/questions/${questionId}`, {
-      questionText: question.text,
-      options: question.options,
-      correctAnswer:
-        question.options && typeof question.correctAnswer === "number"
-          ? question.options[question.correctAnswer]
-          : undefined,
-      points: question.points,
-    });
-    return normalizeQuestion(unwrap<any>(res));
-  },
-
   deleteQuestion: async (_quizId: string, questionId: string) => {
     await api.delete(`/questions/${questionId}`);
+  },
+};
+
+export const submissionService = {
+  submitQuiz: async (quizId: string, answers: Array<{ question: string; selectedAnswer: string }>) => {
+    const res = await api.post<ApiResponse<any>>(`/submissions/quiz/${quizId}`, { answers });
+    return normalizeSubmission(unwrap<any>(res));
+  },
+  getMySubmissionForQuiz: async (quizId: string) => {
+    const res = await api.get<ApiResponse<any | null>>(`/submissions/quiz/${quizId}/my`);
+    const data = unwrap<any | null>(res);
+    return data ? normalizeSubmission(data) : null;
+  },
+  getQuizSubmissions: async (quizId: string) => {
+    const res = await api.get<ApiResponse<any[]>>(`/submissions/quiz/${quizId}`);
+    return unwrap<any[]>(res).map(normalizeSubmission);
+  },
+  getMySubmissions: async () => {
+    const res = await api.get<ApiResponse<any[]>>("/submissions/my");
+    return unwrap<any[]>(res).map(normalizeSubmission);
   },
 };
 

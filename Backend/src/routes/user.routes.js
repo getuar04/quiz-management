@@ -15,7 +15,7 @@ router.use(protect);
 router.get("/me", getProfile);
 router.patch("/me", updateProfile);
 
-router.get("/", restrictTo("admin"), getAllUsers);
+router.get("/", restrictTo("teacher", "admin"), getAllUsers);
 router.post("/", restrictTo("admin"), createUser);
 router.patch("/:id", restrictTo("admin"), updateUserByAdmin);
 

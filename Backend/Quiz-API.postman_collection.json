@@ -1,0 +1,509 @@
+{
+  "info": {
+    "name": "Quiz Management API — Getuar Jakupi",
+    "description": "Full test collection for the Quiz Management REST API. Import this in Postman and set the `baseUrl` and `token` variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "quizId", "value": "", "type": "string" },
+    { "key": "questionId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has token', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data.token).to.be.a('string');",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Getuar Jakupi\",\n  \"email\": \"getuar@quiz.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Register — Missing Fields (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"noname@quiz.com\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has token', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data.token).to.be.a('string');",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"getuar@quiz.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Login — Wrong Password (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"getuar@quiz.com\",\n  \"password\": \"wrongpassword\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Users",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has user data', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data).to.have.property('email');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/users/me", "host": ["{{baseUrl}}"], "path": ["users", "me"] }
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Name updated', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data.name).to.eql('Getuar Updated');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Getuar Updated\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/users/me", "host": ["{{baseUrl}}"], "path": ["users", "me"] }
+          }
+        },
+        {
+          "name": "Get Profile — No Token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/users/me", "host": ["{{baseUrl}}"], "path": ["users", "me"] }
+          }
+        },
+        {
+          "name": "Get All Users — Needs Admin (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403 (user is not admin)', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Quizzes",
+      "item": [
+        {
+          "name": "Create Quiz",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Quiz created and ID saved', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data._id).to.be.a('string');",
+                  "  pm.collectionVariables.set('quizId', json.data._id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"JavaScript Basics\",\n  \"description\": \"A quiz about JavaScript fundamentals\",\n  \"category\": \"Programming\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/quizzes", "host": ["{{baseUrl}}"], "path": ["quizzes"] }
+          }
+        },
+        {
+          "name": "Get All Quizzes (Public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/quizzes", "host": ["{{baseUrl}}"], "path": ["quizzes"] }
+          }
+        },
+        {
+          "name": "Get My Quizzes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/quizzes/user/mine", "host": ["{{baseUrl}}"], "path": ["quizzes", "user", "mine"] }
+          }
+        },
+        {
+          "name": "Get Quiz By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has title', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data.title).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/quizzes/{{quizId}}", "host": ["{{baseUrl}}"], "path": ["quizzes", "{{quizId}}"] }
+          }
+        },
+        {
+          "name": "Update Quiz",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"JavaScript Basics — Updated\",\n  \"isPublished\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/quizzes/{{quizId}}", "host": ["{{baseUrl}}"], "path": ["quizzes", "{{quizId}}"] }
+          }
+        },
+        {
+          "name": "Get Quiz — Not Found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 or 400', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([404, 400]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/quizzes/000000000000000000000000", "host": ["{{baseUrl}}"], "path": ["quizzes", "000000000000000000000000"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "❓ Questions",
+      "item": [
+        {
+          "name": "Add Question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Question created and ID saved', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data._id).to.be.a('string');",
+                  "  pm.collectionVariables.set('questionId', json.data._id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionText\": \"What does 'typeof null' return in JavaScript?\",\n  \"options\": [\"null\", \"undefined\", \"object\", \"boolean\"],\n  \"correctAnswer\": \"object\",\n  \"points\": 2\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/questions/quiz/{{quizId}}", "host": ["{{baseUrl}}"], "path": ["questions", "quiz", "{{quizId}}"] }
+          }
+        },
+        {
+          "name": "Add Question — Invalid (wrong correctAnswer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionText\": \"What is 2 + 2?\",\n  \"options\": [\"3\", \"4\", \"5\"],\n  \"correctAnswer\": \"99\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/questions/quiz/{{quizId}}", "host": ["{{baseUrl}}"], "path": ["questions", "quiz", "{{quizId}}"] }
+          }
+        },
+        {
+          "name": "Get Questions By Quiz",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/questions/quiz/{{quizId}}", "host": ["{{baseUrl}}"], "path": ["questions", "quiz", "{{quizId}}"] }
+          }
+        },
+        {
+          "name": "Update Question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"points\": 5\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/questions/{{questionId}}", "host": ["{{baseUrl}}"], "path": ["questions", "{{questionId}}"] }
+          }
+        },
+        {
+          "name": "Delete Question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/questions/{{questionId}}", "host": ["{{baseUrl}}"], "path": ["questions", "{{questionId}}"] }
+          }
+        },
+        {
+          "name": "Delete Question — Unauthorized (no token) (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/questions/{{questionId}}", "host": ["{{baseUrl}}"], "path": ["questions", "{{questionId}}"] }
+          }
+        },
+        {
+          "name": "Delete Quiz (Cleanup)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/quizzes/{{quizId}}", "host": ["{{baseUrl}}"], "path": ["quizzes", "{{quizId}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}
